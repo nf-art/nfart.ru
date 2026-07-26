@@ -1,8 +1,42 @@
 const header = document.querySelector('[data-header]');
 const reveals = document.querySelectorAll('.reveal');
 const year = document.querySelector('[data-year]');
+const yandexDiskVideos = document.querySelectorAll('[data-yandex-disk-public]');
 
 if (year) year.textContent = new Date().getFullYear();
+
+const loadYandexDiskVideo = async (video) => {
+  const publicKey = video.dataset.yandexDiskPublic;
+  const endpoint = new URL('https://cloud-api.yandex.net/v1/disk/public/resources');
+  endpoint.searchParams.set('public_key', publicKey);
+
+  video.setAttribute('aria-busy', 'true');
+
+  try {
+    const response = await fetch(endpoint);
+    if (!response.ok) throw new Error(`Yandex Disk request failed: ${response.status}`);
+
+    const resource = await response.json();
+    if (!resource.file) throw new Error('Yandex Disk did not return a video URL');
+
+    if (resource.preview) video.poster = resource.preview;
+    video.src = resource.file;
+    video.load();
+  } catch (error) {
+    const fallback = document.createElement('a');
+    fallback.className = 'video-frame__fallback';
+    fallback.href = publicKey;
+    fallback.target = '_blank';
+    fallback.rel = 'noopener noreferrer';
+    fallback.textContent = 'Открыть видео на Яндекс Диске';
+    video.replaceWith(fallback);
+    console.error(error);
+  } finally {
+    video.removeAttribute('aria-busy');
+  }
+};
+
+yandexDiskVideos.forEach(loadYandexDiskVideo);
 
 const syncHeader = () => {
   if (!header) return;
